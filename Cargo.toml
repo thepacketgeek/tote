@@ -1,0 +1,18 @@
+[package]
+name = "tote"
+version = "0.1.0"
+authors = ["Matthew Wood <mat@thepacketgeek.com>"]
+edition = "2018"
+description = "A lightweight data cache for CLI libraries"
+
+[dependencies]
+async-trait = "0.1"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+thiserror = "1.0"
+
+[dev-dependencies]
+dirs = "3.0"
+tokio = { version = "0.2", features = ["macros", "rt-threaded"] }
+tempfile = "3.0"
