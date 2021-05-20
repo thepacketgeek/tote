@@ -1,6 +1,6 @@
 [package]
 name = "tote"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Matthew Wood <mat@thepacketgeek.com>"]
 edition = "2018"
 description = "A lightweight data cache for CLI libraries"
@@ -28,5 +28,5 @@ thiserror = "1.0"
 
 [dev-dependencies]
 dirs = "3.0"
-tokio = { version = "0.2", features = ["macros", "rt-threaded"] }
-tempfile = "3.0"
+tokio = { version = "1.6", features = ["macros", "rt"] }
+tempfile = "3.2"
