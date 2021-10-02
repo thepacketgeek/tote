@@ -150,7 +150,7 @@ mod tests {
     use serde_derive::{Deserialize, Serialize};
     use tempfile::NamedTempFile;
 
-    #[cfg(feature="async")]
+    #[cfg(feature = "async")]
     use async_trait::async_trait;
 
     #[derive(Debug, Serialize, Deserialize)]
