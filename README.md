@@ -50,7 +50,7 @@ fn main () -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Async
+### Async
 The `"async"` feature adds the `AsyncFetch` trait if you want to use async I/O for fetching data. Call `Tote::get_async().await` to get the `Tote` contents.
 
 #### Cargo.toml
