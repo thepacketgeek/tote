@@ -59,29 +59,34 @@ tote = { version = "*", features = ["async"] }
 ```
 
 ```rust
+use std::collections::HashMap;
+use std::net::IpAddr;
 use std::time::Duration;
 use async_trait::async_trait;
 use serde_derive::{Serialize, Deserialize};
-use tote::{Fetch, Tote, Result};
+use tote::{AsyncFetch, Tote};
 
 // Implement `serde`'s `Serialize`/`Deserialize` for you own data
 // or make a NewType and `derive` so `Tote` can read and write the cached data
 #[derive(Debug, Deserialize, Serialize)]
-struct MyData(Vec<String>);
+struct MyData(IpAddr);
 
 #[async_trait]
-impl Fetch<MyData> for MyData {
-    async fn fetch() -> Result<MyData> {
-        // This would likely do some I/O to fetch common data
-        Ok(MyData(vec!["Larkspur".to_owned(), "Lavender".to_owned(), "Periwinkle".to_owned()]))
+impl AsyncFetch<MyData> for MyData {
+    async fn fetch() -> Result<MyData, Box<dyn std::error::Error>> {
+       let resp = reqwest::get("https://httpbin.org/ip")
+           .await?
+           .json::<HashMap<String, String>>()
+           .await?;
+        let origin_ip = resp["origin"].parse()?;
+        Ok(MyData(origin_ip))
     }
 }
 
 #[tokio::main]
-async fn main () -> Result<()> {
+async fn main () -> Result<(), Box<dyn std::error::Error>> {
     // Create a Tote at the given path, with data expiry of 1 day
     let cache: Tote<MyData> = Tote::new("./colors.cache", Duration::from_secs(86400));
-
     // This `.get().await` call will use data cached in "colors.cache" if:
     // - The file exists & has valid data
     // - The file has been modified in the past 1 day

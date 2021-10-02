@@ -53,7 +53,10 @@
 //! ```
 //!
 //! ```ignore
+//! use std::collections::HashMap;
+//! use std::net::IpAddr;
 //! use std::time::Duration;
+//!
 //! use async_trait::async_trait;
 //! use serde_derive::{Serialize, Deserialize};
 //! use tote::{AsyncFetch, Tote};
@@ -61,13 +64,17 @@
 //! // Implement `serde`'s `Serialize`/`Deserialize` for you own data
 //! // or make a NewType and `derive` so `Tote` can read and write the cached data
 //! #[derive(Debug, Deserialize, Serialize)]
-//! struct MyData(Vec<String>);
+//! struct MyData(IpAddr);
 //!
 //! #[async_trait]
 //! impl AsyncFetch<MyData> for MyData {
 //!     async fn fetch() -> Result<MyData, Box<dyn std::error::Error>> {
-//!         // This would likely do some I/O to fetch common data
-//!         Ok(MyData(vec!["Larkspur".to_owned(), "Lavender".to_owned(), "Periwinkle".to_owned()]))
+//!        let resp = reqwest::get("https://httpbin.org/ip")
+//!            .await?
+//!            .json::<HashMap<String, String>>()
+//!            .await?;
+//!         let origin_ip = resp["origin"].parse()?;
+//!         Ok(MyData(origin_ip))
 //!     }
 //! }
 //!
