@@ -1,96 +1,6 @@
 #![deny(missing_docs)]
+#![doc = include_str!("../README.md")]
 
-//! A lightweight data cache for CLI libraries
-//!
-//! For CLIs that query a default set of information with each invocation,
-//! `Tote` offers a convenient way to cache data to a file for quicker
-//! subsequent CLI runs.
-//!
-//! When `Tote` is used for a cache (examples below), the `tote.get()` call will:
-//! - Check that the `Tote` filepath exists and has been modified within the specified expiry time
-//! - Deserialize and return the data
-//!
-//! If the cached data is not present or expired, `Tote` will:
-//! - Use the `Fetch::fetch` or `AsyncFetch::fetch` methods to retrieve the data
-//! - Serialize the data (using `serde_json`) and write to the `Tote` filepath
-//! - Return the newly fetched data
-
-//! ```ignore
-//! use std::time::Duration;
-//! use serde_derive::{Serialize, Deserialize};
-//! use tote::{Fetch, Tote};
-//!
-//! // Implement `serde`'s `Serialize`/`Deserialize` for you own data
-//! // or make a NewType and `derive` so `Tote` can read and write the cached data
-//! #[derive(Debug, Deserialize, Serialize)]
-//! struct MyData(Vec<String>);
-//!
-//! impl Fetch<MyData> for MyData {
-//!     fn fetch() -> Result<MyData, Box<dyn std::error::Error>> {
-//!         // This would likely do some I/O to fetch common data
-//!         Ok(MyData(vec!["Larkspur".to_owned(), "Lavender".to_owned(), "Periwinkle".to_owned()]))
-//!     }
-//! }
-//!
-//! fn main () -> Result<(), Box<dyn std::error::Error>> {
-//!     // Create a Tote at the given path, with data expiry of 1 day
-//!     let cache: Tote<MyData> = Tote::new("./colors.cache", Duration::from_secs(86400));
-//!
-//!     // This `.get()` call will use data cached in "colors.cache" if:
-//!     // - The file exists & has valid data
-//!     // - The file has been modified in the past 1 day
-//!     // Otherwise `MyData::fetch` is called to get the data and populate the cache file
-//!     let available_colors = cache.get()?;
-//!     println!("Colors you can use are: {:?}", available_colors);
-//!     Ok(())
-//! }
-//! ```
-//!
-//! # Feature "async"
-//! Use async/await for fetching data with the "async" feature, which presents an `AsyncFetch` trait:
-//! ```toml
-//! tote = { version = "*", features = ["async"] }
-//! ```
-//!
-//! ```ignore
-//! use std::collections::HashMap;
-//! use std::net::IpAddr;
-//! use std::time::Duration;
-//!
-//! use async_trait::async_trait;
-//! use serde_derive::{Serialize, Deserialize};
-//! use tote::{AsyncFetch, Tote};
-//!
-//! // Implement `serde`'s `Serialize`/`Deserialize` for you own data
-//! // or make a NewType and `derive` so `Tote` can read and write the cached data
-//! #[derive(Debug, Deserialize, Serialize)]
-//! struct MyData(IpAddr);
-//!
-//! #[async_trait]
-//! impl AsyncFetch<MyData> for MyData {
-//!     async fn fetch() -> Result<MyData, Box<dyn std::error::Error>> {
-//!        let resp = reqwest::get("https://httpbin.org/ip")
-//!            .await?
-//!            .json::<HashMap<String, String>>()
-//!            .await?;
-//!         let origin_ip = resp["origin"].parse()?;
-//!         Ok(MyData(origin_ip))
-//!     }
-//! }
-//!
-//! #[tokio::main]
-//! async fn main () -> Result<(), Box<dyn std::error::Error>> {
-//!     // Create a Tote at the given path, with data expiry of 1 day
-//!     let cache: Tote<MyData> = Tote::new("./colors.cache", Duration::from_secs(86400));
-//!     // This `.get().await` call will use data cached in "colors.cache" if:
-//!     // - The file exists & has valid data
-//!     // - The file has been modified in the past 1 day
-//!     // Otherwise `MyData::fetch` is called to get the data and populate the cache file
-//!     let available_colors = cache.get().await?;
-//!     println!("Colors you can use are: {:?}", available_colors);
-//!     Ok(())
-//! }
-//! ```
 use std::fs;
 use std::io::{self, Write};
 use std::marker::PhantomData;
@@ -98,16 +8,14 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 #[cfg(feature = "async")]
-use async_trait::async_trait;
+pub use async_trait::async_trait;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[cfg(not(feature = "async"))]
 /// A trait provided to allow `Tote` to fetch the data
 /// when no cache exists or cache is expired
 pub trait Fetch<T> {
-    #[cfg(not(feature = "async"))]
     /// Strategy for fetching data to cache
     fn fetch() -> std::result::Result<T, Box<dyn std::error::Error>>;
 }
@@ -119,7 +27,7 @@ pub trait Fetch<T> {
 pub trait AsyncFetch<T> {
     #[cfg(feature = "async")]
     /// Strategy for fetching data to cache
-    async fn fetch() -> std::result::Result<T, Box<dyn std::error::Error>>;
+    async fn fetch_async() -> std::result::Result<T, Box<dyn std::error::Error>>;
 }
 
 /// Errors that can occur during `Tote` operations
@@ -162,7 +70,6 @@ impl<T> Tote<T> {
         }
     }
 
-    #[cfg(not(feature = "async"))]
     /// Fetch the cached data, returning Err for I/O issues
     /// or if the cache file is expired
     pub fn get<'a>(&self) -> Result<T, ToteError>
@@ -182,7 +89,7 @@ impl<T> Tote<T> {
     #[cfg(feature = "async")]
     /// Fetch the cached data, returning Err for I/O issues
     /// or if the cache file is expired
-    pub async fn get<'a>(&self) -> Result<T, ToteError>
+    pub async fn get_async<'a>(&self) -> Result<T, ToteError>
     where
         for<'de> T: Deserialize<'de> + 'a,
         T: Serialize + AsyncFetch<T>,
@@ -191,7 +98,7 @@ impl<T> Tote<T> {
             return Ok(data);
         }
         // Fall-back to fetching data and updating cache file
-        let data = T::fetch().await?;
+        let data = T::fetch_async().await?;
         self.put(&data)?;
         Ok(data)
     }
@@ -222,7 +129,7 @@ impl<T> Tote<T> {
             .write(true)
             .open(&self.path)?;
         let mut writer = io::BufWriter::new(file);
-        writer.write_all(&data.as_bytes())?;
+        writer.write_all(data.as_bytes())?;
         Ok(())
     }
 
@@ -243,24 +150,15 @@ mod tests {
     use serde_derive::{Deserialize, Serialize};
     use tempfile::NamedTempFile;
 
+    #[cfg(feature="async")]
+    use async_trait::async_trait;
+
     #[derive(Debug, Serialize, Deserialize)]
     struct TestData {
         name: String,
         value: u8,
     }
 
-    #[cfg(feature = "async")]
-    #[async_trait]
-    impl AsyncFetch<TestData> for TestData {
-        async fn fetch() -> Result<TestData, Box<dyn std::error::Error>> {
-            Ok(TestData {
-                name: "Test".to_owned(),
-                value: 50,
-            })
-        }
-    }
-
-    #[cfg(not(feature = "async"))]
     impl Fetch<TestData> for TestData {
         fn fetch() -> Result<TestData, Box<dyn std::error::Error>> {
             Ok(TestData {
@@ -270,7 +168,6 @@ mod tests {
         }
     }
 
-    #[cfg(not(feature = "async"))]
     #[test]
     fn test_round_trip() {
         let file = NamedTempFile::new().unwrap();
@@ -295,6 +192,17 @@ mod tests {
     }
 
     #[cfg(feature = "async")]
+    #[async_trait]
+    impl AsyncFetch<TestData> for TestData {
+        async fn fetch_async() -> Result<TestData, Box<dyn std::error::Error>> {
+            Ok(TestData {
+                name: "Test".to_owned(),
+                value: 50,
+            })
+        }
+    }
+
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_round_trip_async() {
         let file = NamedTempFile::new().unwrap();
@@ -309,7 +217,7 @@ mod tests {
             .unwrap();
 
         assert!(cache.is_valid());
-        let res = cache.get().await.unwrap();
+        let res = cache.get_async().await.unwrap();
         assert!(cache.is_valid());
         assert_eq!(res.name, "Test".to_owned());
         assert_eq!(res.value, 50);
@@ -324,7 +232,7 @@ mod tests {
         let file = NamedTempFile::new().unwrap();
         let cache: Tote<TestData> = Tote::new(file.path(), Duration::from_millis(300));
 
-        let res = cache.get().await.unwrap();
+        let res = cache.get_async().await.unwrap();
         assert!(cache.is_valid());
         assert_eq!(res.name, "Test".to_owned());
         assert_eq!(res.value, 50);
