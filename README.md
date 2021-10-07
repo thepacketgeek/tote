@@ -51,7 +51,7 @@ fn main () -> Result<(), Box<dyn std::error::Error>> {
     // Otherwise `NearbyCities::fetch` is called to get the data and populate the cache file
     let nearby_cities = cache.get()?;
     println!("Cities near you are: {:?}", nearby_cities);
-    # std::fs::remove_file(".my_tool.cache")?;
+    # std::fs::remove_file(".my_tool.cache")?; // Cleanup for doctest
     Ok(())
 }
 ```
@@ -102,7 +102,7 @@ async fn main () -> Result<(), Box<dyn std::error::Error>> {
     // Otherwise `MyPublicIp::fetch_async` is called to get the data and populate the cache file
     let public_ip = cache.get_async().await?;
     println!("Your public IP address is {}", public_ip.0);
-    # std::fs::remove_file(".my_tool.cache")?;
+    # std::fs::remove_file(".my_tool.cache")?; // Cleanup for doctest
     Ok(())
 }
 ```

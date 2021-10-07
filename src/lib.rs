@@ -53,7 +53,7 @@ pub enum ToteError {
     Fetching(#[from] Box<dyn std::error::Error>),
 }
 
-/// Local file cache for D42 device info
+/// Local file cache for data needed across binary instantiations
 ///
 /// Given a path & maximum cache age, provides methods
 /// for fetching (unexpired) and writing device info
