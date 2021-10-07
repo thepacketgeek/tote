@@ -21,30 +21,36 @@ The default feature uses a Synchronous `Fetch` trait:
 
 ```rust
 use std::time::Duration;
+
 use serde_derive::{Serialize, Deserialize};
 use tote::{Fetch, Tote};
 
 // Implement `serde`'s `Serialize`/`Deserialize` for you own data
 // or make a NewType and `derive` so `Tote` can read and write the cached data
 #[derive(Debug, Deserialize, Serialize)]
-struct MyData(Vec<String>);
-impl Fetch<MyData> for MyData {
-    fn fetch() -> Result<MyData, Box<dyn std::error::Error>> {
-        // This would likely do some I/O to fetch common data
-        Ok(MyData(vec!["Larkspur".to_owned(), "Lavender".to_owned(), "Periwinkle".to_owned()]))
+struct NearbyCities(Vec<String>);
+
+impl Fetch for NearbyCities {
+    type Cached = NearbyCities;
+
+    fn fetch() -> Result<NearbyCities, Box<dyn std::error::Error>> {
+        let resp = reqwest::blocking::get("http://getnearbycities.geobytes.com/GetNearbyCities?radius=10")?
+           .json::<Vec<Vec<String>>>()?;
+        let cities = resp.into_iter().map(|city| format!("{}, {}", city[1], city[2])).collect();
+        Ok(NearbyCities(cities))
     }
 }
 
 fn main () -> Result<(), Box<dyn std::error::Error>> {
     // Create a Tote at the given path, with data expiry of 1 day
-    let cache: Tote<MyData> = Tote::new(".my_tool.cache", Duration::from_secs(86400));
+    let cache: Tote<NearbyCities> = Tote::new(".my_tool.cache", Duration::from_secs(86400));
 
     // This `.get()` call will use data cached in ".my_tool.cache" if:
     // - The file exists & has valid data
     // - The file has been modified in the past 1 day
-    // Otherwise `MyData::fetch` is called to get the data and populate the cache file
-    let available_colors = cache.get()?;
-    println!("Colors you can use are: {:?}", available_colors);
+    // Otherwise `NearbyCities::fetch` is called to get the data and populate the cache file
+    let nearby_cities = cache.get()?;
+    println!("Cities near you are: {:?}", nearby_cities);
     # std::fs::remove_file(".my_tool.cache")?;
     Ok(())
 }
@@ -62,6 +68,7 @@ tote = { version = "*", features = ["async"] }
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::time::Duration;
+
 use async_trait::async_trait;
 use serde_derive::{Serialize, Deserialize};
 use tote::{AsyncFetch, Tote};
@@ -69,28 +76,30 @@ use tote::{AsyncFetch, Tote};
 // Implement `serde`'s `Serialize`/`Deserialize` for you own data
 // or make a NewType and `derive` so `Tote` can read and write the cached data
 #[derive(Debug, Deserialize, Serialize)]
-struct MyData(IpAddr);
+struct MyPublicIp(IpAddr);
 
 #[async_trait]
-impl AsyncFetch<MyData> for MyData {
-    async fn fetch_async() -> Result<MyData, Box<dyn std::error::Error>> {
+impl AsyncFetch for MyPublicIp {
+    type Cached = MyPublicIp;
+
+    async fn fetch_async() -> Result<MyPublicIp, Box<dyn std::error::Error>> {
        let resp = reqwest::get("https://httpbin.org/ip")
            .await?
            .json::<HashMap<String, String>>()
            .await?;
         let origin_ip = resp["origin"].parse()?;
-        Ok(MyData(origin_ip))
+        Ok(MyPublicIp(origin_ip))
     }
 }
 
 #[tokio::main]
 async fn main () -> Result<(), Box<dyn std::error::Error>> {
     // Create a Tote at the given path, with data expiry of 1 day
-    let cache: Tote<MyData> = Tote::new(".my_tool.cache", Duration::from_secs(86400));
+    let cache: Tote<MyPublicIp> = Tote::new(".my_tool.cache", Duration::from_secs(86400));
     // This `.get_async().await` call will use data cached in ".my_tool.cache" if:
     // - The file exists & has valid data
     // - The file has been modified in the past 1 day
-    // Otherwise `MyData::fetch_async` is called to get the data and populate the cache file
+    // Otherwise `MyPublicIp::fetch_async` is called to get the data and populate the cache file
     let public_ip = cache.get_async().await?;
     println!("Your public IP address is {}", public_ip.0);
     # std::fs::remove_file(".my_tool.cache")?;

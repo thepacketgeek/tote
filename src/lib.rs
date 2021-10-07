@@ -15,19 +15,25 @@ use thiserror::Error;
 
 /// A trait provided to allow `Tote` to fetch the data
 /// when no cache exists or cache is expired
-pub trait Fetch<T> {
+pub trait Fetch: Serialize {
+    /// The data type to be fetched & cached
+    type Cached;
+
     /// Strategy for fetching data to cache
-    fn fetch() -> std::result::Result<T, Box<dyn std::error::Error>>;
+    fn fetch() -> std::result::Result<Self::Cached, Box<dyn std::error::Error>>;
 }
 
 #[cfg(feature = "async")]
 /// A trait provided to allow `Tote` to fetch the data
 /// when no cache exists or cache is expired
 #[async_trait]
-pub trait AsyncFetch<T> {
+pub trait AsyncFetch {
+    /// The data type to be fetched & cached
+    type Cached;
+
     #[cfg(feature = "async")]
     /// Strategy for fetching data to cache
-    async fn fetch_async() -> std::result::Result<T, Box<dyn std::error::Error>>;
+    async fn fetch_async() -> std::result::Result<Self::Cached, Box<dyn std::error::Error>>;
 }
 
 /// Errors that can occur during `Tote` operations
@@ -75,7 +81,7 @@ impl<T> Tote<T> {
     pub fn get<'a>(&self) -> Result<T, ToteError>
     where
         for<'de> T: Deserialize<'de> + 'a,
-        T: Serialize + Fetch<T>,
+        T: Serialize + Fetch<Cached = T>,
     {
         if let Ok(data) = self.read() {
             return Ok(data);
@@ -92,7 +98,7 @@ impl<T> Tote<T> {
     pub async fn get_async<'a>(&self) -> Result<T, ToteError>
     where
         for<'de> T: Deserialize<'de> + 'a,
-        T: Serialize + AsyncFetch<T>,
+        T: Serialize + AsyncFetch<Cached = T>,
     {
         if let Ok(data) = self.read() {
             return Ok(data);
@@ -159,7 +165,9 @@ mod tests {
         value: u8,
     }
 
-    impl Fetch<TestData> for TestData {
+    impl Fetch for TestData {
+        type Cached = TestData;
+
         fn fetch() -> Result<TestData, Box<dyn std::error::Error>> {
             Ok(TestData {
                 name: "Test".to_owned(),
@@ -193,7 +201,9 @@ mod tests {
 
     #[cfg(feature = "async")]
     #[async_trait]
-    impl AsyncFetch<TestData> for TestData {
+    impl AsyncFetch for TestData {
+        type Cached = TestData;
+
         async fn fetch_async() -> Result<TestData, Box<dyn std::error::Error>> {
             Ok(TestData {
                 name: "Test".to_owned(),
