@@ -1,4 +1,4 @@
-# Tote
+# Tote [![Rust](https://github.com/thepacketgeek/tote/actions/workflows/rust.yml/badge.svg)](https://github.com/thepacketgeek/tote/actions/workflows/rust.yml)
 
 A lightweight data file cache for CLI libraries
 
