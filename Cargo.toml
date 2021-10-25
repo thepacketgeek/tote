@@ -1,8 +1,8 @@
 [package]
 name = "tote"
-version = "0.4.2"
+version = "0.5.0"
 authors = ["Matthew Wood <mat@thepacketgeek.com>"]
-edition = "2018"
+edition = "2021"
 description = "A lightweight data cache for CLI libraries"
 license = "MIT"
 homepage = "https://github.com/thepacketgeek/tote"
