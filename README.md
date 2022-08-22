@@ -1,4 +1,4 @@
-# Tote [![Rust](https://github.com/thepacketgeek/tote/actions/workflows/rust.yml/badge.svg)](https://github.com/thepacketgeek/tote/actions/workflows/rust.yml)
+# Tote [![Build](https://img.shields.io/github/workflow/status/thepacketgeek/tote/Rust?logo=github)](https://github.com/thepacketgeek/tote/actions/workflows/rust.yml) [![Docs](https://img.shields.io/docsrs/tote?logo=rust)](https://docs.rs/crate/tote/latest)
 
 A lightweight data file cache for CLI libraries
 
